@@ -1,55 +1,70 @@
-import asyncio
-import pyautogui
-import pytesseract
 import cv2
-from concurrent.futures import ThreadPoolExecutor
-
-from settings import read_settings
+import os
+import asyncio
+import logging
+import pytesseract
+from pathlib import Path
+from set_settings import read_settings
 
 async def perform_ocr():
 	"""
-    Performs Optical Character Recognition (OCR) on a screenshot of the entire screen.
+	Performs Optical Character Recognition (OCR) on the newest screenshot found in the `screenshot_buffer` folder,
+	and returns structured OCR data.
 
-    This asynchronous function reads settings to obtain a screenshot path, takes a screenshot of the entire screen, 
-    saves it, and then uses pytesseract to perform OCR on the saved image. It handles the screenshot capture 
-    and OCR processing in a non-blocking way using asyncio and ThreadPoolExecutor, ensuring the event loop 
-    is not blocked during these operations.
+	This asynchronous function reads settings to obtain the screenshot folder path, finds the newest screenshot in the folder, 
+	and then uses pytesseract to perform OCR on this image. It returns structured OCR data that includes positional 
+	information for each recognized word.
 
-    Returns:
-        A future object representing the OCR'd text from the screenshot. The actual text can be obtained by 
-        awaiting this future.
+	Returns:
+		A list of dictionaries, where each dictionary contains 'text', 'left', 'top', 'width', and 'height' keys for 
+		each recognized word.
 
-    Note:
-        - The function reads 'screenshot_path' from a settings object obtained via read_settings().
-        - It waits for 2 seconds after taking the screenshot to ensure the file is saved before attempting OCR.
-        - If the screenshot cannot be loaded, it prints an error message and returns an empty string.
-    """
+	Note:
+		- The function reads 'screenshot_path' from a settings object obtained via read_settings(), which should point 
+		to the folder containing the screenshots.
+		- If no images are found in the folder, it logs an error message and returns an empty list.
+	"""
 
-	# Read the current settings to get the screenshot path
+	logger = logging.getLogger('python_logger')
 	settings = read_settings()
-	screenshot_path = settings.get("screenshot_path")
+	screenshot_folder_path = settings.get("screenshot_path")
 
-	loop = asyncio.get_running_loop()
+	if not Path(screenshot_folder_path).is_dir():
+		logger.error(f"Screenshot folder path does not exist: {screenshot_folder_path}")
+		return []
 
-	# Take a screenshot of the entire screen in a non-blocking way
-	await loop.run_in_executor(None, pyautogui.screenshot, screenshot_path)
+	newest_screenshot = max(Path(screenshot_folder_path).glob('*.png'), key=os.path.getctime, default=None)
 
-	# Wait for a brief period to ensure the screenshot has been saved
-	await asyncio.sleep(2)
+	if newest_screenshot is None:
+		logger.error("No screenshot found in the folder.")
+		return []
 
-	# Define a helper function to the asynchroneous OCR
-	def do_ocr():
-		# Use pytesseract to do OCR on the screnshot
+	screenshot_path = str(newest_screenshot)
+	logger.info(f"Using newest screenshot at: {screenshot_path}")
+
+	# Asynchronously perform OCR on the screenshot to obtain structured data
+	async def do_ocr():
 		image = cv2.imread(screenshot_path)
 		if image is None:
-			print("Failed to load image. Check file path and integrity.")
-			return ''
-		else:
-			gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-			text = pytesseract.image_to_string(gray)
-			return text
+			logger.error("Failed to load image for OCR.")
+			return []
 
-	# Run the CPU-bound tasks in a thread executor to avoid blocking the event loop
-	text = loop.run_in_executor(None, do_ocr)
+		# Convert image to grayscale for better OCR accuracy
+		gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+		ocr_result = pytesseract.image_to_data(gray_image, output_type=pytesseract.Output.DICT)
 
-	return text
+		# Structure OCR data for each recognized word
+		ocr_data = [{'text': ocr_result['text'][i],
+					'left': ocr_result['left'][i],
+					'top': ocr_result['top'][i],
+					'width': ocr_result['width'][i],
+					'height': ocr_result['height'][i]}
+					for i in range(len(ocr_result['text']))
+					if ocr_result['text'][i].strip() != '']  # Exclude empty strings
+
+		return ocr_data
+
+	loop = asyncio.get_running_loop()
+	structured_ocr_data = await do_ocr()
+
+	return structured_ocr_data

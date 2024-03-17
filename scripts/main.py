@@ -1,14 +1,21 @@
-from gui import *
+from ocr import perform_ocr
+from navigation import navigate_ocr
+import asyncio
+from create_logger import logger
 
-def main():
-		
-	# Start the keyboard listener in a separate thread
-    listener_thread = threading.Thread(target=start_keyboard_listener, daemon=True)
-    listener_thread.start()
 
-    # Start the system tray icon (which can also open the chatbox)
-    system_tray_icon()
+async def main():
+
+	# Get the logger
+	python_logger = logger('python_logger', '/Users/maximilianhild/code/kocrlibri/logs/logfile_python.txt')
+	python_logger.info("Starting the main function.")
+
+	await asyncio.sleep(1)
+
+	ocr_data = await perform_ocr()
+	navigate_ocr(target_word='Next', ocr_data=ocr_data)
 
 
 if __name__ == "__main__":
-	main()
+	asyncio.run(main())
+
