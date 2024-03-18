@@ -3,7 +3,10 @@ from navigation import navigate_ocr
 import asyncio
 from create_logger import logger
 
-
+'''
+Main function to trigger the OCR and navigation functions. Currently 
+executed through the 'Fly' command in the status bar menu of kocrlibri.
+'''
 async def main():
 
 	# Get the logger

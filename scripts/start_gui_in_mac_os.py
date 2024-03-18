@@ -2,10 +2,25 @@ import objc
 from Cocoa import NSApplication, NSApp, NSStatusBar, NSMenu, NSMenuItem, NSVariableStatusItemLength, NSImage
 from PyObjCTools.AppHelper import NSApplicationMain, NSObject
 import sys
-
 import os 
 import subprocess
 from create_logger import logger
+
+"""
+A macOS status bar application created with PyObjC that provides quick access to a set of functionalities such as
+executing a predefined script, taking screenshots, and opening a chat interface. 
+
+The application embeds a status item in the macOS system status bar with a custom icon and a menu offering several 
+actions: 
+"Fly" to run a specific Pythonscript, 
+"Take Screenshot" to capture the screen, 
+"Open Chat" to presumably open a chat interface, 
+along with "Settings" and "Quit" options. 
+Logging is configured for monitoring the  application's operations. This example illustrates the use of NSStatusBar, 
+NSMenuItem, and subprocesses within a  PyObjC-based application, showcasing how to integrate Python code with native 
+macOS APIs for desktop automation tasks.
+"""
+
 
 # Configure logging
 swift_logger = logger('swift_logger', '/Users/maximilianhild/code/kocrlibri/logs/logfile_swift.txt')
