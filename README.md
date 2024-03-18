@@ -1,6 +1,14 @@
 # kocrlibri
 ## Researching OCR and LLM functionality for web browser automation
 
+### Setup
+* Create virtual environemnt (not necessary, but recommended)
+	- python version=3.10
+	- for packages see requirements.txt
+	- [install tesseract](https://github.com/tesseract-ocr/tesseract?tab=readme-ov-file#installing-tesseract)
+* Clone repository
+* Run python start_gui_in_mac_os.py
+
 ### Implemented core functionality:
 * Navigation through MacOS native GUI
 * Take a screenshot from menu bar app
