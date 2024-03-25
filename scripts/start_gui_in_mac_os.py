@@ -1,10 +1,14 @@
 import objc
-from Cocoa import NSApplication, NSApp, NSStatusBar, NSMenu, NSMenuItem, NSVariableStatusItemLength, NSImage
+from Cocoa import NSApplication, NSApp, NSStatusBar, NSMenu, NSMenuItem, NSVariableStatusItemLength, NSImage, NSTimer
 from PyObjCTools.AppHelper import NSApplicationMain, NSObject
 import sys
 import os 
 import subprocess
+import threading
+import multiprocessing
 from create_logger import logger
+from dispatch import dispatch_async, dispatch_get_global_queue
+
 
 """
 A macOS status bar application created with PyObjC that provides quick access to a set of functionalities such as
@@ -35,6 +39,8 @@ class AppDelegate(NSObject):
 			self.statusItem.button().setImage_(image)
 			#self.statusItem.button().setTitle_("👽")
 		
+		self.screenshotEnabled = False
+		self.screenshotTimer = None
 		self.setupMenus()
 
 	def setupMenus(self):
@@ -45,9 +51,9 @@ class AppDelegate(NSObject):
 		flyMenuItem.setTarget_(self)  # Set the target for the action
 
 		# Add Take Screenshot menu item
-		screenshotMenuItem = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Take Screenshot", "takeScreenshot:", "s")
-		menu.addItem_(screenshotMenuItem)
-		screenshotMenuItem.setTarget_(self)
+		self.screenshotMenuItem = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Start Taking Screenshot", "toggleScreenshots:", "s")
+		menu.addItem_(self.screenshotMenuItem)
+		self.screenshotMenuItem.setTarget_(self)
 
 		openMenuItem = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Open Chat", "openChat:", "o")
 		menu.addItem_(openMenuItem)
@@ -65,13 +71,13 @@ class AppDelegate(NSObject):
 
 	@objc.IBAction
 	def runScript_(self, sender):
-		# Path to the current script (your PyObjC application)
-		current_script_path = os.path.dirname(os.path.realpath(__file__))
-		
-		# Name of the script you want to run
+		# Queue the script execution task to a global concurrent queue
+		dispatch_async(dispatch_get_global_queue(0, 0), self._runScriptProcess)
+
+	def _runScriptProcess(self):
+		# Find current script path
+		current_script_path = os.path.dirname(os.path.realpath(__file__))		
 		script_name = "main.py"
-		
-		# Construct the full path to the script
 		script_path = os.path.join(current_script_path, script_name)
 		
 		# Use subprocess to run the script
@@ -90,8 +96,31 @@ class AppDelegate(NSObject):
 
 
 	@objc.IBAction
+	def toggleScreenshots_(self, sender):
+		self.screenshotEnabled = not self.screenshotEnabled
+		if self.screenshotEnabled:
+			self.screenshotMenuItem.setTitle_("Stop Taking Screenshots")
+			self.startTakingScreenshots()
+		else:
+			self.screenshotMenuItem.setTitle_("Start Taking Screenshots")
+			self.stopTakingScreenshots()
+
+	def startTakingScreenshots(self):
+		self.screenshotTimer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(5.0, self, "takeScreenshot:", None, True)
+
+	def stopTakingScreenshots(self):
+		if self.screenshotTimer:
+			self.screenshotTimer.invalidate()
+			self.screenshotTimer = None
+
+	@objc.IBAction
 	def takeScreenshot_(self, sender):
 
+		# Queue the screenshot task to a global concurrent queue
+		dispatch_async(dispatch_get_global_queue(0, 0), self._takeScreenshotProcess)
+
+
+	def _takeScreenshotProcess(self):
 		# Define the directory where you want to save the screenshot
 		screenshots_dir = "/Users/maximilianhild/code/kocrlibri/screenshot_buffer"
 		if not os.path.exists(screenshots_dir):
@@ -102,12 +131,11 @@ class AppDelegate(NSObject):
 		timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 		screenshot_path = os.path.join(screenshots_dir, f"screenshot_{timestamp}.png")
 
-
 		# Define the command and arguments for taking a screenshot
 		command = "/usr/sbin/screencapture"
-		args = ["-x", screenshot_path]  # '-w' waits for a window selection, saves to screenshot_path
+		args = ["-x", screenshot_path]  # '-x' prevents the sound, adjust args as needed
 
-		# Execute the command
+		# Execute the command in a try-except block
 		try:
 			subprocess.run([command] + args, check=True)
 			swift_logger.info(f"Screenshot taken successfully and saved to {screenshot_path}.")
@@ -121,9 +149,10 @@ class AppDelegate(NSObject):
 		print("Open Chat menu item clicked.")
 
 
-
 if __name__ == "__main__":
     app = NSApplication.sharedApplication()
     delegate = AppDelegate.alloc().init()
     NSApp().setDelegate_(delegate)
     NSApplicationMain(sys.argv)
+
+

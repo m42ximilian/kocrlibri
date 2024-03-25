@@ -1,5 +1,6 @@
 import cv2
 import os
+import json
 import asyncio
 import logging
 import pytesseract
@@ -28,12 +29,14 @@ async def perform_ocr():
 	logger = logging.getLogger('python_logger')
 	settings = read_settings()
 	screenshot_folder_path = settings.get("screenshot_path")
+	ocr_output_folder_path = '/Users/maximilianhild/code/kocrlibri/ocr_out'
 
 	if not Path(screenshot_folder_path).is_dir():
 		logger.error(f"Screenshot folder path does not exist: {screenshot_folder_path}")
 		return []
 
 	newest_screenshot = max(Path(screenshot_folder_path).glob('*.png'), key=os.path.getctime, default=None)
+	logger.info(f"Current screenshot used for OCR is {newest_screenshot}")
 
 	if newest_screenshot is None:
 		logger.error("No screenshot found in the folder.")
@@ -66,5 +69,16 @@ async def perform_ocr():
 
 	loop = asyncio.get_running_loop()
 	structured_ocr_data = await do_ocr()
+
+	# Extract the base name of the screenshot and prepend 'ocr_'
+	screenshot_base_name = Path(screenshot_path).stem  # Gets the file name without the extension
+	json_file_name = f"ocr_{screenshot_base_name}.json"
+	json_file_path = os.path.join(ocr_output_folder_path, json_file_name)
+
+	# Save the structured OCR data to a JSON file
+	with open(json_file_path, 'w') as file:
+		json.dump(structured_ocr_data, file, indent=4)
+	logger.info(f"OCR data saved to {json_file_path}")
+
 
 	return structured_ocr_data
