@@ -11,10 +11,10 @@
 
 ### Implemented core functionality:
 * Navigation through MacOS native GUI
-* Take a screenshot from menu bar app
+* Toggle screenshot taking from menu bar app
 * Perform OCR on screenshot and extract data for navigation
 * Navigate to next page from menu bar app using *Fly* command
-* Leverage LLM to make sense of OCR output
+	- currently works by scrolling through entire page (max_iterations parameter in main.py) and manually declaring the next button (navigate_ocr() paramter in main.py)
 
 ### Benchmarks:
 * Scraping LinkedIn
@@ -22,20 +22,22 @@
 * Scraping Amazon
 
 ### TODO: 
-* Implement complete browsing automation:
-	- taking many snapshots
-	- while scrolling through page
-	- concantenate and extract data
-	- go to next page
+* Terminating *Fly* command from menu bar
+* Integrate LLM to make sense of OCR output
+* Fine-tune browsing automation:
+	- find website navigation autonomously 
+	- detect top and bottom edges of page
+	- ignore rest of browser 
 
 * Integrate realisitic mouse movements and keyboard stroke - as in simulating user browsing behavior
-* Integrate better chatbot to give instructions to script
-* Integrate langchain 
-  
 
 ### Ideas:
-* Integrating Selenium for background browser automations on pages which allow for it
-* Integrate webUI classification to optimise for scraping and browsing targets
+* Implementing some sort of compression and storage system for input files --> desiding to use images or OCR output
+* Integrate Playwright for background browser automations on pages which allow for it
+* Integrate webUI classification to optimise for scraping and browsing targets?
+* Integrate web search through langchain
+* Integrate pdf recognition
+* Integrate audio transcription for video-calls
 
 * This could be turned into a system-wide personal assistant that:
 	- does research tasks for you in the background 
