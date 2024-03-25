@@ -1,47 +1,45 @@
+import asyncio
+import json
 import logging
 import pyautogui
 
-def navigate_ocr(target_word, ocr_data=None):
-    """
-    Navigates to and clicks on the specified target word using pre-processed OCR data.
-    
-    This function assumes that `ocr_data` is a list of dictionaries, where each dictionary contains
-    'text', 'left', 'top', 'width', and 'height' keys for each recognized word.
+logger = logging.getLogger('python_logger')
 
-    Parameters:
-        target_word (str): The word to navigate to and click on.
-        ocr_data (list of dict, optional): Pre-processed OCR data including positional information. Each dict should have
-                                            'text', 'left', 'top', 'width', 'height' keys.
-
-    Note:
-        - The function assumes a Retina display and adjusts the coordinates accordingly.
-        - It only clicks the first occurrence of the word. To click on all occurrences, remove the break statement.
-    """
-
-    logger = logging.getLogger('python_logger')
-
+async def navigate_ocr(target_word, ocr_data=None):
     if ocr_data is None:
         logger.error("No OCR data provided.")
-        return
+        return False
 
+    loop = asyncio.get_running_loop()
     found = False
+
     for item in ocr_data:
-        if item['text'] == target_word:
+        if target_word not in item['text']:
+            await loop.run_in_executor(None, pyautogui.scroll, -10)  # Non-blocking scroll
+        elif item['text'] == target_word:
             x, y, w, h = item['left'], item['top'], item['width'], item['height']
-            
-            # Adjust for Retina display
-            x /= 2
+            x /= 2  # Adjust for Retina display
             y /= 2
-            
-            # Calculate the center of the bounding box
             center_x, center_y = x + w / 2, y + h / 2
+
+            # Non-blocking moveTo and click
+            await loop.run_in_executor(None, pyautogui.moveTo, center_x, center_y, 2)
+            await loop.run_in_executor(None, pyautogui.click, center_x, center_y)
             
-            # Move the mouse to the center of the word and click
-            pyautogui.moveTo(center_x, center_y, duration=2)
-            pyautogui.click(center_x, center_y)
             found = True
             logger.info(f"Clicked on '{target_word}' at ({center_x}, {center_y}).")
             break  # Remove this break to click on all occurrences of the word
 
     if not found:
         logger.info(f"The word '{target_word}' was not found in the provided OCR data.")
+    
+    return found
+
+async def main():
+    ocr_data_path = "path_to_your_ocr_data.json"
+    with open(ocr_data_path, 'r') as file:
+        ocr_data = json.load(file)
+    await navigate_ocr(target_word="Next", ocr_data=ocr_data)
+
+if __name__ == '__main__':
+    asyncio.run(main())
